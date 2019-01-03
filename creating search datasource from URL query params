@@ -87,7 +87,7 @@ boroughs <- read_xlsx("./CitiHabitats-Neighborhod-Assigned-To-Office.xlsx")
 
 #merge in borough data
 merge_boroughs_2018 <- expanded_data_2018 %>%
-  filter(!is.na(neighborhoods)) %>% 
+  filter(!is.na(neighborhoods) & `Unique Pageviews` != 0) %>% 
   merge(boroughs, by.x="neighborhoods", by.y="Neighborhood", all.x=T) %>%
   select(-`Office Name`)
 
