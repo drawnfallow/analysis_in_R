@@ -74,7 +74,7 @@ rental_reporting <- neighborhood_pricing_w_borough %>%
   spread(beds, median_max_price) %>%
   write.csv("rental_searches_2018.csv", row.names=FALSE, na="")
 
-#group by borough, neighborhood, beds, and has_doorman to find median/mean min-max price
+#group by borough, neighborhood, and beds to find median/mean min-max price
 hoods <- merge_boroughs_2018 %>%
   uncount(`Unique Pageviews`) %>%
   group_by(Borough, neighborhoods, beds) %>%
@@ -111,35 +111,35 @@ borough_mean_counts <- merge_boroughs_2018 %>%
             sd_count_in_borough = sd(count_in_neighborhood))
 
 #merge mean counts into merge_boroughs
-neighborhood_pricing_w_borough <- merge(neighborhood_pricing_w_borough, borough_mean_counts, by="Borough", all.x=T)
+top10_hoods_w_mean <- merge(top10_hoods, borough_mean_counts, by="Borough", all.x=T)
 
 #create z-score for mean counts by neighborhoods
-neighborhood_pricing_w_borough$count_z_score <- round((neighborhood_pricing_w_borough$n - neighborhood_pricing_w_borough$mean_count_in_borough)/neighborhood_pricing_w_borough$sd_count_in_borough, digits=2)
+top10_hoods_w_mean$count_z_score <- round((top10_hoods_w_mean$n - top10_hoods_w_mean$mean_count_in_borough)/top10_hoods_w_mean$sd_count_in_borough, digits=2)
 
 #create z-score type for count
-neighborhood_pricing_w_borough$count_type <- ifelse(neighborhood_pricing_w_borough$count_z_score < 0, "below", "above")
+top10_hoods_w_mean$count_type <- ifelse(top10_hoods_w_mean$count_z_score < 0, "below", "above")
 
 #create new df for reordered by z-score
-z_scored_counts <- neighborhood_pricing_w_borough[order(neighborhood_pricing_w_borough$count_z_score),] #Ascending sort on Z Score
+z_scored_counts <- top10_hoods_w_mean[order(top10_hoods_w_mean$count_z_score),] #Ascending sort on Z Score
 
 z_scored_counts$neighborhoods <- factor(z_scored_counts$neighborhoods,
                                         levels = z_scored_counts$neighborhoods[order(z_scored_counts$count_z_score)])
 
 #plot z-score of top 10 neighborhood search counts by borough pop and export PDF
 z_scored_counts %>%
-  filter(Borough %in% c("Brooklyn", "Manhattan", "Queens")) %>%
+  filter(Borough %in% c("Brooklyn", "Manhattan", "Queens", "Bronx", "Staten Island")) %>%
   group_by(Borough) %>%
   top_n(10, n) %>%
   ungroup() %>%
 ggplot(aes(x = neighborhoods, y = count_z_score, label=count_z_score)) +
   geom_bar(stat='identity', width=.5, fill = "#00ba38") +
   coord_flip() +
-  facet_wrap(~ Borough, nrow = 3, scales = "free_y") +
+  facet_wrap(~ Borough, scales = "free_y") +
   guides(fill=FALSE) +
   labs(caption="Produced by Keith Yu") +
   xlab("Neighborhoods") +
   ylab("# of Standard Deviations from Mean") +
-  ggsave(filename="plot_search_deviation.pdf", width = 11, height = 8.5, units = "in")
+  ggsave(filename="plot_search_deviation.pdf", width = 22, height = 8.5, units = "in")
 
 #plot z-score of top 10 neighborhood search counts by borough pop (manhattan only)
 z_scored_counts %>%
