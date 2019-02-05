@@ -130,28 +130,19 @@ listing_prices <- listing_prices %>%
     BedroomsNumber == 2 ~ "2 Bedroom",
     BedroomsNumber == 3 ~ "3 Bedroom",
     BedroomsNumber >= 4 ~ "4+ Bedrooms",
-    BedroomsNumber == "NULL" ~ NA_character_
-  ))
-
-listing_prices <- listing_prices %>%
-  mutate(ListingType = case_when(
-    ListingTypeID == 26960 ~ "Exclusive",
-    ListingTypeID == 26970 ~ "Co-Broke",
-    ListingTypeID == 26980 ~ "Co-Exclusive",
-    ListingTypeID == 26990 ~ "Open"
-  ))
-
-listing_prices$BedroomsNumber <- as.factor(listing_prices$BedroomsNumber)
+    BedroomsNumber == "NULL" ~ NA_character_,
+    TRUE ~ BedroomsNumber
+    ),
+    BedroomsNumber = as.factor(listing_prices$BedroomsNumber)
+  )
 
 str(listing_prices)
 
 #Merge in pricing data
 merged_data <- merge(init_merge_data, listing_prices, 
                      by.x = "Id", by.y = "ListingID",
-                     all.x = TRUE) %>% 
-  dplyr::select(-ListingPriceID)
-
-merged_data <- as_tibble(merged_data)
+                     all.x = TRUE) %>%
+  as_tibble()
 
 #graph of lead volume by date and borough
 merged_data %>%
@@ -180,28 +171,24 @@ merged_data %>%
 #bargraph of lead volume by neighborhoods
 merged_data %>%
   filter(borough %in% c("bronx", "brooklyn", "manhattan", "queens", "staten")) %>%
-  group_by(borough) %>%
-  top_n(10) %>%
-  ungroup() %>%
-  ggplot(aes(fct_infreq(neighborhood))) + 
-  geom_bar() +
+  group_by(borough, neighborhood) %>%
+  summarise(n = n()) %>%
+  filter(n > 1) %>%
+  top_n(10, n) %>%
+  ggplot(aes(x = fct_reorder(neighborhood, desc(n)), y = n)) + 
+  geom_bar(stat = "identity") +
   xlab("Neighborhoods") + ylab("# of Leads") +
   facet_wrap(. ~ borough, scales = "free") +
   theme_gdocs() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+#table of lead volume by boro, neighborhood, beds, and lead type 
 summarised_leads <- merged_data %>%
   filter(borough %in% c("bronx", "brooklyn", "manhattan", "queens", "staten")) %>%
-  group_by(borough, neighborhood, BedroomsNumber, lead_type) %>%
+  group_by(borough, Neighborhood, BedroomsNumber, lead_type) %>%
   summarise(lead_qty = n(),
             median_price = median(ListingPrice)) %>%
   write_csv("leads_per_neighborhood.csv")
-
-summarised_leads %>%
-  gather(variable, value, -(borough:lead_type)) %>%
-  unite(temp, BedroomsNumber, variable) %>%
-  spread(temp, value) %>%
-  write_csv("spread_leads.csv")
 
 #bargraph of lead volume by ListingType
 merged_data %>%
@@ -211,3 +198,5 @@ merged_data %>%
   geom_bar() +
   theme_gdocs() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+save.image()
